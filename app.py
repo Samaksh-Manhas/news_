@@ -155,7 +155,7 @@ if verify:
 
     with st.spinner("Searching latest news..."):
 
-        articles = search_news(headline)
+        articles = search_news(clean_headline)
 
     if len(articles) == 0:
 
@@ -192,7 +192,7 @@ if verify:
                 headline_vector,
 
                 tfidf.transform(
-                    [clean_text(article["title"])]
+                    [clean_text(article["news"])]
                 )
 
             )[0][0]
@@ -274,7 +274,7 @@ if verify:
                 cosine_similarity(
                     headline_vector,
                     tfidf.transform(
-                        [clean_text(article["title"])]
+                        [clean_text(article["news"])]
                     )
                 )[0][0] * 100
                 for article in articles
@@ -286,7 +286,7 @@ if verify:
             key=lambda article: cosine_similarity(
                 headline_vector,
                 tfidf.transform(
-                    [clean_text(article["title"])]
+                    [clean_text(article["news"])]
                 )
             )[0][0]
         )
@@ -325,23 +325,21 @@ if verify:
 
         st.divider()
 
-        if prediction == 1 and highest_similarity >= 70:
+        if (prediction == 1 and highest_similarity >= 50) or highest_similarity >= 65:
 
             st.success(
                 f"""
-### Overall Verdict
+### ✅ Overall Verdict
 
 The entered headline appears **Likely REAL**.
 
-The machine learning model predicts that it resembles
-a genuine news headline, and we found supporting
-articles from trusted news sources.
+{ "Strong supporting evidence was found from trusted news sources, overriding the initial prediction." if (prediction == 0 and highest_similarity >= 65) else "The machine learning model predicts it is genuine, and we found supporting articles from trusted sources." }
 
 **Best Matching Source:** {best_article['source']}
 """
             )
 
-        elif prediction == 0 and highest_similarity < 40:
+        elif prediction == 0 and highest_similarity < 65:
 
             st.error(
                 """
@@ -350,7 +348,7 @@ articles from trusted news sources.
 The entered headline appears **Likely FAKE**.
 
 The machine learning model classified it as fake,
-and very little supporting evidence was found from
+and no strong supporting evidence was found from
 trusted news sources.
 """
             )
@@ -359,15 +357,15 @@ trusted news sources.
 
             st.warning(
                 """
-### Overall Verdict
+### ⚠️ Overall Verdict
 
 The prediction is uncertain.
 
-While the machine learning model has made a prediction,
-the supporting evidence is limited or only partially
-matches the entered headline.
+The machine learning model predicts this is real news,
+but we could not find strong supporting evidence from
+trusted news sources to verify it.
 
-Please verify the news from multiple trusted sources.
+Please verify the news manually.
 """
             )
 
