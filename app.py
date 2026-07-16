@@ -157,7 +157,19 @@ if verify:
 
         articles = search_news(clean_headline)
 
-    if len(articles) == 0:
+    if articles is None:
+
+        st.error(
+            """
+            **NewsAPI Error**
+
+            Unable to fetch live news. Please check your API key or rate limits.
+            """
+        )
+        
+        st.stop()
+
+    elif len(articles) == 0:
 
         st.warning(
             """
@@ -199,67 +211,32 @@ if verify:
 
             similarity = similarity * 100
 
-            article_text = scrape_article(article["url"])
-
-            st.divider()
-
-            st.markdown(
-                f"## {article['title']}"
-            )
-
-            col1, col2 = st.columns([3, 1])
-
-            with col1:
-
-                st.write(
-                    f"**Source:** {article['source']}"
-                )
-
-                st.write(
-                    f"**Published:** {article['published']}"
-                )
-
-            with col2:
-
-                if similarity >= 80:
-
-                    st.success(
-                        f"High Match\n\n{similarity:.2f}%"
-                    )
-
-                elif similarity >= 50:
-
-                    st.warning(
-                        f"Medium Match\n\n{similarity:.2f}%"
-                    )
-
+            with st.expander(f"📰 {article['title']} - Match: {similarity:.1f}%"):
+                article_text = scrape_article(article["url"])
+                
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.write(f"**Source:** {article['source']}")
+                    st.write(f"**Published:** {article['published']}")
+                
+                with col2:
+                    if similarity >= 80:
+                        st.success(f"High Match\n\n{similarity:.2f}%")
+                    elif similarity >= 50:
+                        st.warning(f"Medium Match\n\n{similarity:.2f}%")
+                    else:
+                        st.error(f"Low Match\n\n{similarity:.2f}%")
+                
+                st.markdown(f"**🔗 Article Link:** {article['url']}")
+                
+                if article["description"]:
+                    st.write(f"**Description:** {article['description']}")
+                
+                if len(article_text) > 100:
+                    st.write(f"**Preview:** {article_text[:1500]}...")
                 else:
-
-                    st.error(
-                        f"Low Match\n\n{similarity:.2f}%"
-                    )
-
-            st.markdown(
-                f"**🔗 Article Link:** {article['url']}"
-            )
-
-            if article["description"]:
-
-                st.write(
-                    f"**Description:** {article['description']}"
-                )
-
-            if len(article_text) > 100:
-
-                with st.expander("Read Article Preview"):
-
-                    st.write(article_text[:1500])
-
-            else:
-
-                st.info(
-                    "Couldn't scrape the complete article text."
-                )
+                    st.info("Couldn't scrape the complete article text.")
 
         # ==========================================
         # FINAL VERDICT
