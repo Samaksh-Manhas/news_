@@ -1,6 +1,6 @@
 from newsapi import NewsApiClient
 
-NEWS_API_KEY = "b21c695c2f3e4a6baa4df1f2869413be"
+NEWS_API_KEY = "88fca811c1494f87a97b0d78426e16a9"
 
 newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 
