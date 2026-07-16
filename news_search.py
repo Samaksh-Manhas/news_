@@ -33,7 +33,7 @@ def search_news(query, page_size=5):
 
             sort_by="relevancy",
 
-            search_in="title",
+            search_in="title,description,content",
 
             page_size=page_size
 
@@ -41,7 +41,7 @@ def search_news(query, page_size=5):
 
         if response["status"] != "ok":
 
-            return []
+            return None
 
         articles = []
 
@@ -93,4 +93,4 @@ def search_news(query, page_size=5):
 
         print("NewsAPI Error:", e)
 
-        return []
+        return None
