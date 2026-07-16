@@ -3,13 +3,26 @@ from bs4 import BeautifulSoup
 
 
 def scrape_article(url):
+    """
+    Scrapes the main text from a news article.
+
+    Parameters
+    ----------
+    url : str
+        Article URL
+
+    Returns
+    -------
+    str
+        Clean article text
+    """
+
+    headers = {
+        "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/138.0 Safari/537.36"
+    }
 
     try:
-
-        headers = {
-            "User-Agent":
-            "Mozilla/5.0"
-        }
 
         response = requests.get(
             url,
@@ -17,13 +30,41 @@ def scrape_article(url):
             timeout=10
         )
 
+        response.raise_for_status()
+
         soup = BeautifulSoup(response.text, "html.parser")
+
+        # Remove unwanted tags
+        for tag in soup([
+            "script",
+            "style",
+            "noscript",
+            "header",
+            "footer",
+            "nav",
+            "aside",
+            "form",
+            "svg"
+        ]):
+            tag.decompose()
 
         paragraphs = soup.find_all("p")
 
-        text = " ".join([p.get_text() for p in paragraphs])
+        article = []
 
-        return text
+        for p in paragraphs:
 
-    except:
+            text = p.get_text(strip=True)
+
+            if len(text) > 40:
+                article.append(text)
+
+        article = " ".join(article)
+
+        return article
+
+    except Exception as e:
+
+        print("Scraping Error:", e)
+
         return ""
