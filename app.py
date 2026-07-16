@@ -3,21 +3,31 @@ import joblib
 import re
 import string
 
+from sklearn.metrics.pairwise import cosine_similarity
+
 from news_search import search_news
 from scraper import scrape_article
 
-from sklearn.metrics.pairwise import cosine_similarity
+# ==========================================
+# PAGE CONFIG
+# ==========================================
 
-# --------------------------
-# Load Model
-# --------------------------
+st.set_page_config(
+    page_title="AI Fake News Verification System",
+    page_icon="📰",
+    layout="wide"
+)
+
+# ==========================================
+# LOAD MODEL
+# ==========================================
 
 model = joblib.load("fake_news_model.pkl")
 tfidf = joblib.load("tfidf_vectorizer.pkl")
 
-# --------------------------
-# Cleaning Function
-# --------------------------
+# ==========================================
+# TEXT CLEANING
+# ==========================================
 
 def clean_text(text):
 
@@ -37,90 +47,332 @@ def clean_text(text):
 
     return text
 
-# --------------------------
-# Streamlit UI
-# --------------------------
+# ==========================================
+# HEADER
+# ==========================================
 
-st.set_page_config(
-    page_title="Fake News Verifier",
-    page_icon="📰",
-    layout="wide"
-)
-
-st.title("Fake News & Misinformation Verifier")
+st.title("AI Fake News Verification System")
 
 st.write(
-    "Enter a news headline to search trusted sources and classify the retrieved articles."
+"""
+This application predicts whether a news headline is **Likely Real**
+or **Likely Fake** using a Machine Learning model.
+
+It also searches recent news articles from trusted sources
+to provide supporting evidence.
+"""
 )
+
+st.divider()
 
 headline = st.text_input(
-    "Enter News Headline"
+    "Enter a News Headline"
 )
 
-if st.button("Verify News"):
+verify = st.button("Verify News")
+
+# ==========================================
+# START
+# ==========================================
+
+if verify:
 
     if headline.strip() == "":
-        st.warning("Please enter a headline.")
+
+        st.warning("Please enter a news headline.")
+
         st.stop()
 
-    articles = search_news(headline)
+    clean_headline = clean_text(headline)
+
+    vector = tfidf.transform([clean_headline])
+
+    prediction = model.predict(vector)[0]
+
+    probability = model.predict_proba(vector)[0]
+
+    fake_probability = probability[0] * 100
+
+    real_probability = probability[1] * 100
+
+    # ==========================================
+    # PREDICTION
+    # ==========================================
+
+    st.divider()
+
+    st.subheader("Overall Prediction")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.metric(
+            "Real Probability",
+            f"{real_probability:.2f}%"
+        )
+
+        st.progress(real_probability / 100)
+
+    with col2:
+
+        st.metric(
+            "Fake Probability",
+            f"{fake_probability:.2f}%"
+        )
+
+        st.progress(fake_probability / 100)
+
+    st.divider()
+
+    if prediction == 1:
+
+        st.success(
+            f"""
+            **Likely REAL News**
+
+            Confidence: **{real_probability:.2f}%**
+            """
+        )
+
+    else:
+
+        st.error(
+            f"""
+            **Likely FAKE News**
+
+            Confidence: **{fake_probability:.2f}%**
+            """
+        )
+
+    st.divider()
+
+    # ==========================================
+    # SEARCH SUPPORTING ARTICLES
+    # ==========================================
+
+    st.subheader("Supporting News Articles")
+
+    with st.spinner("Searching latest news..."):
+
+        articles = search_news(headline)
 
     if len(articles) == 0:
-        st.error("No matching articles found.")
-        st.stop()
 
-    headline_vector = tfidf.transform(
-        [clean_text(headline)]
-    )
+        st.warning(
+            """
+            No supporting news articles were found.
 
-    for article in articles:
+            This DOES NOT necessarily mean
+            the news is fake.
+
+            It only means no matching articles
+            were returned from NewsAPI.
+            """
+        )
+
+    else:
+
+        st.success(
+            f"{len(articles)} Supporting Articles Found"
+        )
+
+        headline_vector = tfidf.transform(
+            [clean_headline]
+        )
 
         st.divider()
 
-        st.subheader(article["title"])
+        st.subheader("Evidence")
 
-        st.write("**Source:**", article["source"]["name"])
+        for article in articles:
 
-        st.write(article["url"])
+            similarity = cosine_similarity(
 
-        article_text = scrape_article(
-            article["url"]
+                headline_vector,
+
+                tfidf.transform(
+                    [clean_text(article["title"])]
+                )
+
+            )[0][0]
+
+            similarity = similarity * 100
+
+            article_text = scrape_article(article["url"])
+
+            st.divider()
+
+            st.markdown(
+                f"## {article['title']}"
+            )
+
+            col1, col2 = st.columns([3, 1])
+
+            with col1:
+
+                st.write(
+                    f"**Source:** {article['source']}"
+                )
+
+                st.write(
+                    f"**Published:** {article['published']}"
+                )
+
+            with col2:
+
+                if similarity >= 80:
+
+                    st.success(
+                        f"High Match\n\n{similarity:.2f}%"
+                    )
+
+                elif similarity >= 50:
+
+                    st.warning(
+                        f"Medium Match\n\n{similarity:.2f}%"
+                    )
+
+                else:
+
+                    st.error(
+                        f"Low Match\n\n{similarity:.2f}%"
+                    )
+
+            st.markdown(
+                f"**🔗 Article Link:** {article['url']}"
+            )
+
+            if article["description"]:
+
+                st.write(
+                    f"**Description:** {article['description']}"
+                )
+
+            if len(article_text) > 100:
+
+                with st.expander("Read Article Preview"):
+
+                    st.write(article_text[:1500])
+
+            else:
+
+                st.info(
+                    "Couldn't scrape the complete article text."
+                )
+
+        # ==========================================
+        # FINAL VERDICT
+        # ==========================================
+
+        st.divider()
+
+        st.subheader("Final Assessment")
+
+        highest_similarity = max(
+            [
+                cosine_similarity(
+                    headline_vector,
+                    tfidf.transform(
+                        [clean_text(article["title"])]
+                    )
+                )[0][0] * 100
+                for article in articles
+            ]
         )
 
-        article_clean = clean_text(article_text)
-
-        vector = tfidf.transform([article_clean])
-
-        prediction = model.predict(vector)[0]
-
-        probability = model.predict_proba(vector)[0]
-
-        article_vector = tfidf.transform(
-            [clean_text(article["title"])]
+        best_article = max(
+            articles,
+            key=lambda article: cosine_similarity(
+                headline_vector,
+                tfidf.transform(
+                    [clean_text(article["title"])]
+                )
+            )[0][0]
         )
 
-        similarity = cosine_similarity(
-            headline_vector,
-            article_vector
-        )[0][0]
+        col1, col2, col3 = st.columns(3)
 
-        confidence = max(probability) * 100
+        with col1:
 
-        if prediction == 1:
+            st.metric(
+                "Supporting Articles",
+                len(articles)
+            )
+
+        with col2:
+
+            st.metric(
+                "Highest Match",
+                f"{highest_similarity:.2f}%"
+            )
+
+        with col3:
+
+            if prediction == 1:
+
+                st.metric(
+                    "Model Prediction",
+                    "Likely REAL"
+                )
+
+            else:
+
+                st.metric(
+                    "Model Prediction",
+                    "Likely FAKE"
+                )
+
+        st.divider()
+
+        if prediction == 1 and highest_similarity >= 70:
+
             st.success(
-                f"Prediction: REAL ({confidence:.2f}%)"
+                f"""
+### Overall Verdict
+
+The entered headline appears **Likely REAL**.
+
+The machine learning model predicts that it resembles
+a genuine news headline, and we found supporting
+articles from trusted news sources.
+
+**Best Matching Source:** {best_article['source']}
+"""
             )
-        else:
+
+        elif prediction == 0 and highest_similarity < 40:
+
             st.error(
-                f"Prediction: FAKE ({confidence:.2f}%)"
+                """
+### ❌ Overall Verdict
+
+The entered headline appears **Likely FAKE**.
+
+The machine learning model classified it as fake,
+and very little supporting evidence was found from
+trusted news sources.
+"""
             )
 
-        st.progress(float(confidence/100))
+        else:
 
-        st.write(
-            f"Headline Similarity: {similarity*100:.2f}%"
-        )
+            st.warning(
+                """
+### Overall Verdict
 
-        with st.expander("Article Preview"):
+The prediction is uncertain.
 
-            st.write(article_text[:1500])
+While the machine learning model has made a prediction,
+the supporting evidence is limited or only partially
+matches the entered headline.
+
+Please verify the news from multiple trusted sources.
+"""
+            )
+
+st.divider()
+
+st.caption(
+    "Developed using Python, Scikit-Learn, TF-IDF, Logistic Regression, BeautifulSoup, NewsAPI and Streamlit."
+)
