@@ -4,22 +4,25 @@ from bs4 import BeautifulSoup
 
 def scrape_article(url):
     """
-    Scrapes the main text from a news article.
+    Scrapes the text content of a news article.
 
     Parameters
     ----------
     url : str
-        Article URL
+        URL of the news article
 
     Returns
     -------
     str
-        Clean article text
+        Extracted article text
     """
 
     headers = {
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/138.0 Safari/537.36"
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/138.0.0.0 Safari/537.36"
+        )
     }
 
     try:
@@ -34,7 +37,7 @@ def scrape_article(url):
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Remove unwanted tags
+        # Remove unwanted elements
         for tag in soup([
             "script",
             "style",
@@ -54,17 +57,18 @@ def scrape_article(url):
 
         for p in paragraphs:
 
-            text = p.get_text(strip=True)
+            text = p.get_text(" ", strip=True)
 
             if len(text) > 40:
                 article.append(text)
 
-        article = " ".join(article)
+        article_text = " ".join(article)
 
-        return article
+        if len(article_text) < 200:
+            return "Preview unavailable for this article."
 
-    except Exception as e:
+        return article_text
 
-        print("Scraping Error:", e)
+    except Exception:
 
-        return ""
+        return "Unable to retrieve article preview."
