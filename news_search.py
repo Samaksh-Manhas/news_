@@ -7,15 +7,15 @@ newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 
 def search_news(query, page_size=5):
     """
-    Searches NewsAPI for articles related to the given headline.
+    Search NewsAPI for articles related to the user's headline.
 
     Parameters
     ----------
     query : str
-        News headline entered by the user.
+        User entered headline.
 
     page_size : int
-        Number of articles to fetch.
+        Number of articles to return.
 
     Returns
     -------
@@ -33,6 +33,8 @@ def search_news(query, page_size=5):
 
             sort_by="relevancy",
 
+            search_in="title",
+
             page_size=page_size
 
         )
@@ -45,23 +47,43 @@ def search_news(query, page_size=5):
 
         for article in response["articles"]:
 
+            title = article.get("title") or ""
+
+            description = article.get("description") or ""
+
+            content = article.get("content") or ""
+
+            source = article.get("source", {}).get("name", "Unknown")
+
+            author = article.get("author") or "Unknown"
+
+            published = article.get("publishedAt") or "Unknown"
+
+            url = article.get("url") or ""
+
+            image = article.get("urlToImage")
+
+            news = f"{title} {description}"
+
             articles.append({
 
-                "title": article["title"],
+                "title": title,
 
-                "description": article["description"],
+                "description": description,
 
-                "content": article["content"],
+                "content": content,
 
-                "source": article["source"]["name"],
+                "news": news,
 
-                "author": article["author"],
+                "source": source,
 
-                "published": article["publishedAt"],
+                "author": author,
 
-                "url": article["url"],
+                "published": published,
 
-                "image": article["urlToImage"]
+                "url": url,
+
+                "image": image
 
             })
 
